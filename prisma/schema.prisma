@@ -1,0 +1,59 @@
+// Prisma schema for the URL shortener + analytics service.
+//
+// Three entities:
+//   User  — registered accounts (links can also be anonymous).
+//   Link  — a slug -> destination mapping with optional expiry rules.
+//   Click — one row per redirect, written asynchronously after the response.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String // bcrypt hash, never the plain text
+  name      String?
+  createdAt DateTime @default(now())
+  links     Link[]
+}
+
+model Link {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  destination String
+  // Nullable: anonymous quick-shortens from the landing page have no owner.
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // Optional expiry rules — checked lazily on read, see README.
+  expiresAt   DateTime?
+  maxClicks   Int?
+  disabled    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  clicks      Click[]
+
+  @@index([userId])
+}
+
+model Click {
+  id       String   @id @default(cuid())
+  linkId   String
+  link     Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  ts       DateTime @default(now())
+  country  String?
+  city     String?
+  referrer String? // hostname only, e.g. "news.ycombinator.com"
+  device   String? // "desktop" | "mobile" | "tablet" (from ua-parser-js)
+  browser  String?
+  // Salted SHA-256 of the visitor IP. Raw IPs are never stored.
+  ipHash   String
+
+  @@index([linkId, ts])
+  @@index([linkId, ipHash])
+}

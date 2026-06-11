@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment files — never commit secrets
+.env
+.env.*
+!.env.example
+
+# Build outputs
+.next/
+dist/
+build/
+out/
+
+# Test artifacts
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# OS noise
+.DS_Store
